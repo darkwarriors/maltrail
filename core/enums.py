@@ -9,6 +9,7 @@ class TRAIL:
     DNS = "DNS"
     IP = "IP"
     URL = "URL"
+    UA = "UA"
 
 class BLOCK_MARKER:
     NOP = chr(0x00)

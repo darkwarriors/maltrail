@@ -48,6 +48,8 @@ from core.settings import SUSPICIOUS_DOMAIN_LENGTH_THRESHOLD
 from core.settings import SUSPICIOUS_FILENAMES
 from core.settings import SUSPICIOUS_HTTP_REQUEST_REGEX
 from core.settings import SUSPICIOUS_HTTP_REQUEST_FORCE_ENCODE_CHARS
+from core.settings import SUSPICIOUS_UA_BOT_REQUEST_REGEX
+from core.settings import SUSPICIOUS_UA_COMMAND_REQUEST_REGEX
 from core.settings import trails
 from core.settings import VERSION
 from core.settings import WHITELIST
@@ -136,6 +138,16 @@ def _process_packet(packet, sec, usec):
                                 return
                         else:
                             return
+                        # User Agent Euristic
+                        index = data.find("\r\nUser-Agent:")
+                        blank_ua = False
+                        if index >= 0:
+                            index = index + len("\r\nUser-Agent:")
+                            ua = data[index:data.find("\r\n", index)]
+                        else:
+                            # HTTP Request without UA! should we look at that for a suspicious one
+                            blank_ua = True
+
 
                         index = data.find("\r\nHost:")
                         if index >= 0:
@@ -189,7 +201,19 @@ def _process_packet(packet, sec, usec):
                                 elif filename in SUSPICIOUS_FILENAMES:
                                     trail = "%s(%s)" % (host, path)
                                     log_event((sec, usec, src_ip, src_port, dst_ip, dst_port, "TCP", TRAIL.URL, trail, "suspicious page", "(heuristic)"))
-
+                            # Suspicious UA too short, usually it indicates a bot or a bad external connection
+                            # Also the Blank one!
+                            # Should we avoid simple UA like Wget, curl, lynx and so on.. ?
+                            if len(ua) < 10:
+                                log_event((sec, usec, src_ip, src_port, dst_ip, dst_port, "TCP", TRAIL.UA, host+path, "suspicious http request: short UA", "(heuristic)",ua))
+                            elif blank_ua:
+                                log_event((sec, usec, src_ip, src_port, dst_ip, dst_port, "TCP", TRAIL.URL, host+path, "suspicious http request: Blank UA", "(heuristic)"))
+                            elif re.search(SUSPICIOUS_UA_BOT_REQUEST_REGEX, urllib.unquote(ua)):
+                                log_event((sec, usec, src_ip, src_port, dst_ip, dst_port, "TCP", TRAIL.UA, host+path, "suspicious http request: Scanning UA", "(heuristic)",ua))
+                            elif re.search((SUSPICIOUS_UA_COMMAND_REQUEST_REGEX,urllib.unquote(ua))):
+                                log_event((sec, usec, src_ip, src_port, dst_ip, dst_port, "TCP", TRAIL.UA, host+path, "suspicious http request: command in UA", "(heuristic)",ua))
+                            #TODO: remove this is only for debug!
+                            print ua
             elif protocol == socket.IPPROTO_UDP:  # UDP
                 i = iph_length + ETH_LENGTH
                 _ = packet[i:i + 4]
@@ -340,7 +364,7 @@ def init():
         _cap.setfilter(config.CAPTURE_FILTER)
 
     _datalink = _cap.datalink()
-    if _datalink not in (pcapy.DLT_EN10MB, pcapy.DLT_LINUX_SLL):
+    if _datalink not in (pcapy.DLT_EN10MB, pcapy.DLT_LINUX_SLL, pcapy.DLT_PPP):
         exit("[x] datalink type '%s' not supported" % _datalink)
 
     if _multiprocessing:

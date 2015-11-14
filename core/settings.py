@@ -17,7 +17,7 @@ config = AttribDict()
 trails = {}
 
 NAME = "Maltrail"
-VERSION = "0.8.3"
+VERSION = "0.8.1"
 SERVER_HEADER = "%s/%s" % (NAME, VERSION)
 DATE_FORMAT = "%Y-%m-%d"
 ROTATING_CHARS = ('\\', '|', '|', '/', '-')
@@ -52,7 +52,10 @@ LOW_PRIORITY_INFO_KEYWORDS = ("suspicious", "attacker", "abuser", "malicious", "
 BAD_TRAIL_PREFIXES = ("127.", "192.168.", "localhost")
 SUSPICIOUS_DIRECT_DOWNLOAD_EXTENSIONS = set((".apk", ".exe", ".scr"))
 SUSPICIOUS_FILENAMES = set(("gate.php",))
-SUSPICIOUS_HTTP_REQUEST_REGEX = r"(?i)(information_schema|\b(AND|OR|SELECT)\b.*/\*.*\*/|/\*.*\*/.*\b(AND|OR|SELECT)\b|\b(AND|OR)[^\w]+\d+['\") ]?[=><]['\"( ]?\d+|(alert|confirm|prompt)\((\d+|document\.|[^\w]*XSS)|\bping -[nc] \d+|floor\(rand\(|ORDER BY \d+|sysdatabases|(\.\./){3,}|\bSELECT\b.*\bFROM\b.*\bWHERE\b|\bSELECT \w+ FROM \w+|<script|\balert\(|xp_cmdshell|/etc/passwd|<\?php|boot\.ini|\bwindows[\\/]win\.ini|\bsleep\(|\bWAITFOR[^\w]+DELAY\b|\bCONVERT\(|VARCHAR|\bUNION\s+(ALL\s+)?SELECT\b)"
+SUSPICIOUS_HTTP_REQUEST_REGEX = r"(?i)(information_schema|\b(AND|OR|SELECT)\b.*/\*.*\*/|/\*.*\*/.*\b(AND|OR|SELECT)\b|floor\(rand\(|order by \d+|sysdatabases|(\.\./){3,}|\bselect\b.*\bfrom\b.*\bwhere\b|\bselect \w+ from \w+|<script|\balert\(|xp_cmdshell|/etc/passwd|<\?php|boot\.ini|\bsleep\(|\bconvert\(|varchar|\bunion\s+(all\s+)?select\b)"
+SUSPICIOUS_UA_BOT_REQUEST_REGEX = r"(?i)(lwp-|nmap|masscan|openvas|acunetix|nikto|w3af|nessus|perl|nexpose|loic|hoic)"
+SUSPICIOUS_UA_COMMAND_REQUEST_REGEX = r"(?i)(/etc/passwd|http://\S+/w+\.(bin|ini|sh|pl|py|jpg|jpeg|zip|gzip|tar.gz|.exe)|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|(wget|curl|fetch) http://\S+/|chown|\w+\s/tmp/)"
+SUSPICIOUS_MALWARE_REQUEST_REGEX = r"(?i)(Mazilla|iexplorer)"
 SUSPICIOUS_HTTP_REQUEST_FORCE_ENCODE_CHARS = "( )"
 SESSIONS = {}
 NO_SUCH_NAME_COUNTERS = {}  # this won't be (expensive) shared in multiprocessing run (hence, the threshold will effectively be n-times higher)
@@ -137,14 +140,9 @@ def read_config(config_file):
                 continue
             else:
                 array = None
-                try:
-                    name, value = line.strip().split(' ', 1)
-                except ValueError:
-                    name = line.strip()
-                    value = ""
-                finally:
-                    name = name.upper()
-                    value = value.strip("'\"")
+                name, value = line = line.strip().split(' ', 1)
+                name = name.upper()
+                value = value.strip("'\"")
 
             if name.startswith("USE_"):
                 value = value.lower() in ("1", "true")
@@ -169,15 +167,16 @@ def read_config(config_file):
             exit("[!] missing mandatory option '%s' in configuration file '%s'" % (option, config_file))
 
     if config.CAPTURE_BUFFER:
-        if config.CAPTURE_BUFFER.isdigit():
+        try:
             BUFFER_LENGTH = int(config.CAPTURE_BUFFER)
-        elif re.search(r"\d+%", config.CAPTURE_BUFFER):
-            physmem = _get_total_physmem()
+        except:
+            if re.search(r"\d+%", config.CAPTURE_BUFFER):
+                physmem = _get_total_physmem()
 
-            if physmem:
-                BUFFER_LENGTH = physmem * int(re.search(r"(\d+)%", config.CAPTURE_BUFFER).group(1)) / 100
-            else:
-                exit("[!] unable to determine total physical memory. Please use absolute value for 'CAPTURE_BUFFER'")
+                if physmem:
+                    BUFFER_LENGTH = physmem * int(re.search(r"(\d+)%", config.CAPTURE_BUFFER).group(1)) / 100
+                else:
+                    exit("[!] unable to determine total physical memory. Please use absolute value for 'CAPTURE_BUFFER'")
 
         BUFFER_LENGTH = BUFFER_LENGTH / BLOCK_LENGTH * BLOCK_LENGTH
 
