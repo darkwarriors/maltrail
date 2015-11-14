@@ -50,6 +50,7 @@ from core.settings import SUSPICIOUS_HTTP_REQUEST_REGEX
 from core.settings import SUSPICIOUS_HTTP_REQUEST_FORCE_ENCODE_CHARS
 from core.settings import SUSPICIOUS_UA_BOT_REQUEST_REGEX
 from core.settings import SUSPICIOUS_UA_COMMAND_REQUEST_REGEX
+from core.settings import SUSPICIOUS_UA_MALWARE_REQUEST_REGEX
 from core.settings import trails
 from core.settings import VERSION
 from core.settings import WHITELIST
@@ -201,10 +202,11 @@ def _process_packet(packet, sec, usec):
                                 elif filename in SUSPICIOUS_FILENAMES:
                                     trail = "%s(%s)" % (host, path)
                                     log_event((sec, usec, src_ip, src_port, dst_ip, dst_port, "TCP", TRAIL.URL, trail, "suspicious page", "(heuristic)"))
+                        if config.USE_HEURISTICS_UA:
                             # Suspicious UA too short, usually it indicates a bot or a bad external connection
                             # Also the Blank one!
                             # Should we avoid simple UA like Wget, curl, lynx and so on.. ?
-                            if len(ua) < 10:
+                            if len(ua) < 6:
                                 log_event((sec, usec, src_ip, src_port, dst_ip, dst_port, "TCP", TRAIL.UA, host+path, "suspicious http request: short UA", "(heuristic)",ua))
                             elif blank_ua:
                                 log_event((sec, usec, src_ip, src_port, dst_ip, dst_port, "TCP", TRAIL.URL, host+path, "suspicious http request: Blank UA", "(heuristic)"))
@@ -212,6 +214,8 @@ def _process_packet(packet, sec, usec):
                                 log_event((sec, usec, src_ip, src_port, dst_ip, dst_port, "TCP", TRAIL.UA, host+path, "suspicious http request: Scanning UA", "(heuristic)",ua))
                             elif re.search((SUSPICIOUS_UA_COMMAND_REQUEST_REGEX,urllib.unquote(ua))):
                                 log_event((sec, usec, src_ip, src_port, dst_ip, dst_port, "TCP", TRAIL.UA, host+path, "suspicious http request: command in UA", "(heuristic)",ua))
+                            elif re.search((SUSPICIOUS_UA_MALWARE_REQUEST_REGEX,urllib.unquote(ua))):
+                                log_event((sec, usec, src_ip, src_port, dst_ip, dst_port, "TCP", TRAIL.UA, host+path, "suspicious http request: Malware UA", "(heuristic)",ua))
                             #TODO: remove this is only for debug!
                             print ua
             elif protocol == socket.IPPROTO_UDP:  # UDP
