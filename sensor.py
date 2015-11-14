@@ -212,9 +212,9 @@ def _process_packet(packet, sec, usec):
                                 log_event((sec, usec, src_ip, src_port, dst_ip, dst_port, "TCP", TRAIL.URL, host+path, "suspicious http request: Blank UA", "(heuristic)"))
                             elif re.search(SUSPICIOUS_UA_BOT_REQUEST_REGEX, urllib.unquote(ua)):
                                 log_event((sec, usec, src_ip, src_port, dst_ip, dst_port, "TCP", TRAIL.UA, host+path, "suspicious http request: Scanning UA", "(heuristic)",ua))
-                            elif re.search((SUSPICIOUS_UA_COMMAND_REQUEST_REGEX,urllib.unquote(ua))):
+                            elif re.search(SUSPICIOUS_UA_COMMAND_REQUEST_REGEX,urllib.unquote(ua)):
                                 log_event((sec, usec, src_ip, src_port, dst_ip, dst_port, "TCP", TRAIL.UA, host+path, "suspicious http request: command in UA", "(heuristic)",ua))
-                            elif re.search((SUSPICIOUS_UA_MALWARE_REQUEST_REGEX,urllib.unquote(ua))):
+                            elif re.search(SUSPICIOUS_UA_MALWARE_REQUEST_REGEX,urllib.unquote(ua)):
                                 log_event((sec, usec, src_ip, src_port, dst_ip, dst_port, "TCP", TRAIL.UA, host+path, "suspicious http request: Malware UA", "(heuristic)",ua))
                             #TODO: remove this is only for debug!
                             print ua
